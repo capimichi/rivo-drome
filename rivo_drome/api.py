@@ -5,6 +5,7 @@ from starlette.responses import RedirectResponse
 
 from rivo_drome.container.default_container import DefaultContainer
 from rivo_drome.controller.example_controller import ExampleController
+from rivo_drome.controller.navidrome_proxy_controller import NavidromeProxyController
 
 
 app = FastAPI(
@@ -35,6 +36,11 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health_check():
     return {"status": "ok"}
+
+
+navidrome_proxy_controller: NavidromeProxyController = default_container.get(NavidromeProxyController)
+
+app.include_router(navidrome_proxy_controller.router)
 
 
 if __name__ == "__main__":

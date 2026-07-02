@@ -6,17 +6,22 @@ from injector import Injector
 
 from rivo_drome.client.example_client import ExampleClient
 from rivo_drome.config.example_config import ExampleConfig
+from rivo_drome.config.navidrome_config import NavidromeConfig
 from rivo_drome.command.example_command import ExampleCommand
 from rivo_drome.controller.example_controller import ExampleController
+from rivo_drome.controller.navidrome_proxy_controller import NavidromeProxyController
 from rivo_drome.factory.example_factory import ExampleFactory
 from rivo_drome.generator.example_generator import ExampleGenerator
 from rivo_drome.helper.example_helper import ExampleHelper
+from rivo_drome.logger.proxy_logger import ProxyLogger
 from rivo_drome.manager.example_manager import ExampleManager
+from rivo_drome.manager.navidrome_sample_response_manager import NavidromeSampleResponseManager
 from rivo_drome.mapper.example_mapper import ExampleMapper
 from rivo_drome.orchestrator.example_orchestrator import ExampleOrchestrator
 from rivo_drome.prompt.example_prompt import ExamplePrompt
 from rivo_drome.repository.example_repository import ExampleRepository
 from rivo_drome.service.example_service import ExampleService
+from rivo_drome.service.navidrome_proxy_service import NavidromeProxyService
 
 
 class DefaultContainer:
@@ -28,10 +33,16 @@ class DefaultContainer:
     @staticmethod
     def getInstance():
         if DefaultContainer.instance is None:
-            DefaultContainer.instance = DefaultContainer()
+            instance = object.__new__(DefaultContainer)
+            DefaultContainer.instance = instance
+            instance.__init__()
         return DefaultContainer.instance
 
     def __init__(self):
+        if getattr(self, '_initialized', False):
+            return
+        self._initialized = True
+
         self.injector = Injector()
 
         load_dotenv()
@@ -64,6 +75,8 @@ class DefaultContainer:
         self.api_host = os.environ.get('API_HOST', '0.0.0.0')
         self.api_port = int(os.environ.get('API_PORT', '8459'))
         self.session_dir_env = os.environ.get('SESSION_DIR', 'var/session')
+        self.navidrome_url = os.environ.get('NAVIDROME_URL', 'http://localhost:4533')
+        self.navidrome_music_dir = os.environ.get('NAVIDROME_MUSIC_DIR', '')
 
     def _init_logging(self):
         logging.basicConfig(
@@ -117,3 +130,22 @@ class DefaultContainer:
 
         example_command = ExampleCommand(example_service)
         self.injector.binder.bind(ExampleCommand, to=example_command)
+
+        navidrome_config = NavidromeConfig(
+            url=self.navidrome_url,
+            music_dir=self.navidrome_music_dir,
+        )
+        self.injector.binder.bind(NavidromeConfig, to=navidrome_config)
+
+        samples_dir = os.path.join(self.var_dir, 'samples')
+        proxy_logger = ProxyLogger(log_dir=self.log_dir)
+        self.injector.binder.bind(ProxyLogger, to=proxy_logger)
+
+        navidrome_sample_manager = NavidromeSampleResponseManager(samples_dir=samples_dir)
+        self.injector.binder.bind(NavidromeSampleResponseManager, to=navidrome_sample_manager)
+
+        navidrome_proxy_service = NavidromeProxyService(proxy_logger, navidrome_sample_manager, navidrome_config)
+        self.injector.binder.bind(NavidromeProxyService, to=navidrome_proxy_service)
+
+        navidrome_proxy_controller = NavidromeProxyController(navidrome_proxy_service)
+        self.injector.binder.bind(NavidromeProxyController, to=navidrome_proxy_controller)
