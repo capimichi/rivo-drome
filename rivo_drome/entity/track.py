@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import BigInteger, Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 
 from rivo_drome.entity.base import BaseEntity
@@ -15,7 +15,7 @@ class Track(BaseEntity):
     album_id = Column(Integer, ForeignKey("album.id"), nullable=True)
     duration = Column(Integer, nullable=True)
     track_number = Column(Integer, nullable=True)
-    deezer_id = Column(Integer, unique=True, nullable=True)
+    deezer_id = Column(BigInteger, unique=True, nullable=True)
     local_path = Column(String(1024), nullable=True)
     status = Column(String(32), nullable=False, default="pending")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

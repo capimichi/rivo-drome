@@ -13,9 +13,14 @@ class SearchController:
         self.router = APIRouter()
         self.router.add_api_route("/rest/search2.view", self.search, methods=["GET"])
         self.router.add_api_route("/rest/search3.view", self.search, methods=["GET"])
+        self.router.add_api_route("/rest/search2", self.search, methods=["GET"])
+        self.router.add_api_route("/rest/search3", self.search, methods=["GET"])
         self.router.add_api_route("/rest/getArtist.view", self.get_artist, methods=["GET"])
+        self.router.add_api_route("/rest/getArtist", self.get_artist, methods=["GET"])
         self.router.add_api_route("/rest/getAlbum.view", self.get_album, methods=["GET"])
+        self.router.add_api_route("/rest/getAlbum", self.get_album, methods=["GET"])
         self.router.add_api_route("/rest/getSong.view", self.get_song, methods=["GET"])
+        self.router.add_api_route("/rest/getSong", self.get_song, methods=["GET"])
 
     async def search(
         self,

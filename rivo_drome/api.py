@@ -17,10 +17,8 @@ default_container: DefaultContainer = DefaultContainer.getInstance()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from rivo_drome.entity.base import BaseEntity
-    db_manager = default_container.get_var("_db_manager")
-    if db_manager is not None:
-        BaseEntity.metadata.create_all(db_manager.engine, checkfirst=True)
+    # Rimosso BaseEntity.metadata.create_all per evitare conflitti con Alembic.
+    # Le tabelle devono essere create esclusivamente tramite `alembic upgrade head`.
     yield
 
 

@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import BigInteger
 
 
 revision: str = "002"
@@ -24,7 +25,7 @@ def upgrade() -> None:
         sa.Column("title", sa.String(255), nullable=False),
         sa.Column("artist_id", sa.Integer(), nullable=False),
         sa.Column("cover_url", sa.String(512), nullable=True),
-        sa.Column("deezer_id", sa.Integer(), nullable=True),
+        sa.Column("deezer_id", BigInteger(), nullable=True),
         sa.Column("year", sa.Integer(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
