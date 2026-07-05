@@ -125,7 +125,7 @@ class SearchService:
         return SubsonicArtist(
             id=str(artist.id),
             name=artist.name,
-            coverArt=str(artist.id) if artist.picture_url else None,
+            coverArt=f"ar-{artist.id}" if artist.picture_url else None,
         )
 
     def _album_to_subsonic(self, album: Album) -> SubsonicAlbum:
@@ -133,7 +133,7 @@ class SearchService:
             id=str(album.id),
             name=album.title,
             artistId=str(album.artist_id),
-            coverArt=str(album.id) if album.cover_url else None,
+            coverArt=f"al-{album.id}" if album.cover_url else None,
             year=album.year,
         )
 
@@ -145,6 +145,7 @@ class SearchService:
             albumId=str(track.album_id) if track.album_id else None,
             duration=track.duration,
             track=track.track_number,
+            coverArt=f"al-{track.album_id}" if track.album_id else None,
         )
 
     async def get_artist_by_id(self, artist_id: int) -> Artist | None:
