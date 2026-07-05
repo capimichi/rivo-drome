@@ -12,7 +12,7 @@ from rivo_drome.logger.proxy_logger import ProxyLogger
 from rivo_drome.manager.navidrome_sample_response_manager import NavidromeSampleResponseManager
 
 class NavidromeProxyService:
-    FORWARD_EXCLUDED_HEADERS = {"host", "content-length"}
+    FORWARD_EXCLUDED_HEADERS = {"host", "content-length", "content-encoding"}
 
     @inject
     def __init__(
@@ -46,7 +46,7 @@ class NavidromeProxyService:
 
         resp = await self.client.send(req, stream=True)
         status_code = resp.status_code
-        resp_headers = dict(resp.headers)
+        resp_headers = {k: v for k, v in resp.headers.items() if k.lower() not in self.FORWARD_EXCLUDED_HEADERS}
         content_type = resp.headers.get("content-type", "")
 
         if "application/json" in content_type:

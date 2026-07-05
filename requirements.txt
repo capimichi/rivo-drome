@@ -1,0 +1,17 @@
+# Web Framework & Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+
+# Dependency Injection
+injector>=0.21.0
+
+# HTTP Client (per il proxy verso Navidrome)
+httpx>=0.27.0
+
+# Configurazione e CLI
+python-dotenv>=1.0.1
+click>=8.1.7
+
+# Testing (opzionali per il runtime, raccomandati per lo sviluppo/CI)
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

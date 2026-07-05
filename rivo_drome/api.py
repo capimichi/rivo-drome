@@ -45,7 +45,7 @@ app.include_router(navidrome_proxy_controller.router)
 
 if __name__ == "__main__":
     uvicorn.run(
-        "namespace.api:app",
+        "rivo_drome.api:app",
         host=default_container.get_var("api_host"),
         port=default_container.get_var("api_port"),
         reload=False,
