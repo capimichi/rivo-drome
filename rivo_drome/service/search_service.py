@@ -36,9 +36,11 @@ class SearchService:
         artists = []
         albums = []
         tracks = []
+        seen_artist_ids = set()
+        seen_album_ids = set()
 
         for item in deezer_data.get("data", []):
-            await self._process_deezer_item(item, artists, albums, tracks)
+            await self._process_deezer_item(item, artists, albums, tracks, seen_artist_ids, seen_album_ids)
 
         return SearchResult3(
             artist=artists[:artist_count],
@@ -52,6 +54,8 @@ class SearchService:
         artists: List[SubsonicArtist],
         albums: List[SubsonicAlbum],
         tracks: List[SubsonicChild],
+        seen_artist_ids: set,
+        seen_album_ids: set,
     ):
         deezer_artist = item.get("artist", {})
         deezer_album = item.get("album", {})
@@ -60,11 +64,15 @@ class SearchService:
         if deezer_artist.get("id"):
             artist = await self._get_or_create_artist(deezer_artist)
             artist_id = artist.id
-            artists.append(self._artist_to_subsonic(artist))
+            if artist_id not in seen_artist_ids:
+                seen_artist_ids.add(artist_id)
+                artists.append(self._artist_to_subsonic(artist))
 
         if deezer_album.get("id") and artist_id:
             album = await self._get_or_create_album(deezer_album, artist_id)
-            albums.append(self._album_to_subsonic(album))
+            if album.id not in seen_album_ids:
+                seen_album_ids.add(album.id)
+                albums.append(self._album_to_subsonic(album))
 
         if item.get("id") and artist_id:
             album_id = None
