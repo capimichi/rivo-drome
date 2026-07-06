@@ -60,11 +60,17 @@ class TorrentDownloader(BaseDownloader):
             if not info_hash:
                 continue
 
-            await asyncio.sleep(2)
+            # TorrServer needs time to fetch metadata (especially for magnet links)
+            torrent_info = None
+            for _ in range(10):
+                await asyncio.sleep(2)
+                torrent_info = await self._torrserver.get_torrent_info(info_hash)
+                if torrent_info and torrent_info.get("files"):
+                    break
 
-            torrent_info = await self._torrserver.get_torrent_info(info_hash)
-            if not torrent_info:
+            if not torrent_info or not torrent_info.get("files"):
                 continue
+
 
             files = torrent_info.get("files", [])
             audio_file = self._find_audio_file(files, track_info)
