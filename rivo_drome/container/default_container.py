@@ -26,6 +26,7 @@ from rivo_drome.manager.navidrome_sample_response_manager import NavidromeSample
 from rivo_drome.mapper.example_mapper import ExampleMapper
 from rivo_drome.orchestrator.example_orchestrator import ExampleOrchestrator
 from rivo_drome.prompt.example_prompt import ExamplePrompt
+from rivo_drome.repository.album_repository import AlbumRepository
 from rivo_drome.repository.artist_repository import ArtistRepository
 from rivo_drome.repository.example_repository import ExampleRepository
 from rivo_drome.repository.track_repository import TrackRepository
@@ -207,13 +208,16 @@ class DefaultContainer:
 
         artist_repo = self.injector.get(ArtistRepository)
         track_repo = self.injector.get(TrackRepository)
+        album_repo = self.injector.get(AlbumRepository)
         stream_service = StreamService(
             track_repository=track_repo,
             artist_repository=artist_repo,
+            album_repository=album_repo,
             downloader_chain=first,
             download_dir=self.download_dir,
             torrent_downloader_logger=torrent_downloader_logger,
         )
+
         self.injector.binder.bind(StreamService, to=stream_service)
 
         self._db_manager = db_manager

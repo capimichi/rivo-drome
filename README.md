@@ -70,3 +70,16 @@ Tutte le variabili in `.env`:
 ```bash
 alembic upgrade head
 ```
+
+## Comandi CLI
+
+È possibile eseguire comandi da terminale all'interno del container Docker usando `docker compose run --rm`.
+
+### Download Tracce (`track:download`)
+
+Per cercare e scaricare una traccia direttamente dalla CLI (avviando la catena di download):
+
+```bash
+docker compose run --rm proxy python -m rivo_drome.cli track:download -q "Queen - Bohemian Rhapsody"
+```
+

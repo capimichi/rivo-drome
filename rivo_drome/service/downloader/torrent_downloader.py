@@ -28,10 +28,20 @@ class TorrentDownloader(BaseDownloader):
         self._logger = torrent_downloader_logger
 
     async def _do_download(self, track_info: TrackInfo, dest_path: str) -> Optional[str]:
-        query = f"{track_info.artist} - {track_info.title}"
-        results = await self._jackett.search(query)
+        # Se abbiamo le info sull'album, proviamo a cercare l'album in torrent (molto più probabile trovare un torrent del intero album/discografia)
+        queries = []
+        if track_info.album:
+            queries.append(f"{track_info.artist} {track_info.album}")
+        queries.append(f"{track_info.artist} - {track_info.title}")
 
-        self._logger.log_search(query, len(results))
+        results = []
+        chosen_query = None
+        for q in queries:
+            results = await self._jackett.search(q)
+            self._logger.log_search(q, len(results))
+            if results:
+                chosen_query = q
+                break
 
         if not results:
             return None
@@ -42,6 +52,7 @@ class TorrentDownloader(BaseDownloader):
                 continue
 
             torrent_data = await self._torrserver.add_torrent(magnet)
+
             if torrent_data is None:
                 continue
 
@@ -70,6 +81,21 @@ class TorrentDownloader(BaseDownloader):
         return None
 
     def _find_audio_file(self, files: list, track_info: TrackInfo) -> Optional[dict]:
+        import re
+        # Cerchiamo di normalizzare il titolo per la ricerca (es. rimuovendo punteggiatura, spazi multipli)
+        clean_title = re.sub(r'[^a-zA-Z0-9\s]', '', track_info.title).lower()
+        title_words = clean_title.split()
+
+        for f in files:
+            path = f.get("path", f.get("name", ""))
+            ext = os.path.splitext(path)[1].lower()
+            if ext in self.AUDIO_EXTENSIONS:
+                path_lower = path.lower()
+                # Verifica se tutte le parole significative del titolo della traccia sono presenti nel nome file del torrent
+                if all(word in path_lower for word in title_words):
+                    self._logger.log_audio_file_found(path)
+                    return f
+        # Se non troviamo corrispondenze col titolo, facciamo un fallback sul primo file audio (per torrent singoli)
         for f in files:
             path = f.get("path", f.get("name", ""))
             ext = os.path.splitext(path)[1].lower()
@@ -77,6 +103,7 @@ class TorrentDownloader(BaseDownloader):
                 self._logger.log_audio_file_found(path)
                 return f
         return None
+
 
     async def _download_file(self, url: str, dest_path: str) -> Optional[str]:
         self._logger.log_download_start(url, dest_path)

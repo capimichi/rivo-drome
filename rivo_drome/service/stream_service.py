@@ -6,9 +6,11 @@ from injector import inject
 from rivo_drome.entity.track import Track
 from rivo_drome.logger.torrent_downloader_logger import TorrentDownloaderLogger
 from rivo_drome.model.track_info import TrackInfo
+from rivo_drome.repository.album_repository import AlbumRepository
 from rivo_drome.repository.artist_repository import ArtistRepository
 from rivo_drome.repository.track_repository import TrackRepository
 from rivo_drome.service.downloader.base_downloader import BaseDownloader
+
 
 
 class StreamService:
@@ -17,12 +19,14 @@ class StreamService:
         self,
         track_repository: TrackRepository,
         artist_repository: ArtistRepository,
+        album_repository: AlbumRepository,
         downloader_chain: BaseDownloader,
         download_dir: str,
         torrent_downloader_logger: TorrentDownloaderLogger,
     ):
         self._track_repo = track_repository
         self._artist_repo = artist_repository
+        self._album_repo = album_repository
         self._downloader = downloader_chain
         self._download_dir = download_dir
         self._logger = torrent_downloader_logger
@@ -49,6 +53,11 @@ class StreamService:
             return None
 
         artist_name = await self._get_artist_name(track)
+        album_name = None
+        if track.album_id:
+            album = await self._album_repo.get_by_id(track.album_id)
+            if album:
+                album_name = album.title
 
         os.makedirs(self._download_dir, exist_ok=True)
 
@@ -58,8 +67,10 @@ class StreamService:
         track_info = TrackInfo(
             title=track.title,
             artist=artist_name,
+            album=album_name,
             duration=track.duration,
         )
+
 
         result = await self._downloader.download(track_info, dest_path)
         if result is None:
