@@ -16,7 +16,7 @@
 - Module/file names are `snake_case`; classes are `CapWords`; functions and variables are `snake_case`.
 - Keep FastAPI routes thin: delegate to services; wire dependencies via the injector container.
 - Always use Dependency Injection via `@inject` from `injector` for class dependencies. Place `@inject` on constructors so that services, controllers, etc., automatically resolve their dependencies without explicit configuration.
-- Avoid creating explicit `Module` classes (e.g., `db_module.py`) for the container unless a class requires literal variables (like environment configuration parameters) during initialization. For all other classes, let `injector` auto-resolve them directly.
+- In `DefaultContainer`, within the `_init_bindings` method, explicitly bind to `injector` only the classes that require a literal variable during initialization (e.g., environment configurations). If a class only requires other classes in its constructor, it will receive them implicitly from `injector`; do not explicitly bind them in `_init_bindings` to avoid redundant code.
 - Never resolve dependencies or retrieve configuration values inside classes using `DefaultContainer.getInstance()`. Avoid the Service Locator pattern.
 - Avoid defining constants at the module level (outside classes). Always define constants within the class scope where they are used to keep namespaces clean and improve modularity.
 
