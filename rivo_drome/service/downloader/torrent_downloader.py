@@ -3,9 +3,11 @@ import os
 from typing import Optional
 
 import httpx
+from injector import inject
 
 from rivo_drome.client.jackett_client import JackettClient
 from rivo_drome.client.torrserver_client import TorrServerClient
+from rivo_drome.logger.torrent_downloader_logger import TorrentDownloaderLogger
 from rivo_drome.model.track_info import TrackInfo
 from rivo_drome.service.downloader.base_downloader import BaseDownloader
 
@@ -13,14 +15,23 @@ from rivo_drome.service.downloader.base_downloader import BaseDownloader
 class TorrentDownloader(BaseDownloader):
     AUDIO_EXTENSIONS = {".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma"}
 
-    def __init__(self, jackett_client: JackettClient, torrserver_client: TorrServerClient):
+    @inject
+    def __init__(
+        self,
+        jackett_client: JackettClient,
+        torrserver_client: TorrServerClient,
+        torrent_downloader_logger: TorrentDownloaderLogger,
+    ):
         super().__init__()
         self._jackett = jackett_client
         self._torrserver = torrserver_client
+        self._logger = torrent_downloader_logger
 
     async def _do_download(self, track_info: TrackInfo, dest_path: str) -> Optional[str]:
         query = f"{track_info.artist} - {track_info.title}"
         results = await self._jackett.search(query)
+
+        self._logger.log_search(query, len(results))
 
         if not results:
             return None
@@ -63,10 +74,12 @@ class TorrentDownloader(BaseDownloader):
             path = f.get("path", f.get("name", ""))
             ext = os.path.splitext(path)[1].lower()
             if ext in self.AUDIO_EXTENSIONS:
+                self._logger.log_audio_file_found(path)
                 return f
         return None
 
     async def _download_file(self, url: str, dest_path: str) -> Optional[str]:
+        self._logger.log_download_start(url, dest_path)
         try:
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
             async with httpx.AsyncClient() as client:
@@ -75,6 +88,8 @@ class TorrentDownloader(BaseDownloader):
                     with open(dest_path, "wb") as f:
                         async for chunk in response.aiter_bytes():
                             f.write(chunk)
+                    self._logger.log_download_success(dest_path)
                     return dest_path
-        except Exception:
+        except Exception as e:
+            self._logger.log_download_failure(dest_path, reason=str(e))
             return None

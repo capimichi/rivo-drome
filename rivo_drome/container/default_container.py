@@ -19,6 +19,7 @@ from rivo_drome.factory.example_factory import ExampleFactory
 from rivo_drome.generator.example_generator import ExampleGenerator
 from rivo_drome.helper.example_helper import ExampleHelper
 from rivo_drome.logger.proxy_logger import ProxyLogger
+from rivo_drome.logger.torrent_downloader_logger import TorrentDownloaderLogger
 from rivo_drome.manager.db_manager import DbManager
 from rivo_drome.manager.example_manager import ExampleManager
 from rivo_drome.manager.navidrome_sample_response_manager import NavidromeSampleResponseManager
@@ -161,6 +162,9 @@ class DefaultContainer:
         proxy_logger = ProxyLogger(log_dir=self.log_dir)
         self.injector.binder.bind(ProxyLogger, to=proxy_logger)
 
+        torrent_downloader_logger = TorrentDownloaderLogger(log_dir=self.log_dir)
+        self.injector.binder.bind(TorrentDownloaderLogger, to=torrent_downloader_logger)
+
         navidrome_sample_manager = NavidromeSampleResponseManager(samples_dir=samples_dir)
         self.injector.binder.bind(NavidromeSampleResponseManager, to=navidrome_sample_manager)
 
@@ -178,13 +182,13 @@ class DefaultContainer:
         jackett_client = JackettClient(jackett_url=self.jackett_url, api_key=self.jackett_api_key)
         self.injector.binder.bind(JackettClient, to=jackett_client)
 
-        torrserver_client = TorrServerClient(torrserver_url=self.torrserver_url)
+        torrserver_client = TorrServerClient(torrserver_url=self.torrserver_url, torrent_downloader_logger=torrent_downloader_logger)
         self.injector.binder.bind(TorrServerClient, to=torrserver_client)
 
         chain_order = [s.strip() for s in self.downloader_chain_str.split(",") if s.strip()]
         downloaders = {}
         if "torrent" in chain_order:
-            downloaders["torrent"] = TorrentDownloader(jackett_client, torrserver_client)
+            downloaders["torrent"] = TorrentDownloader(jackett_client, torrserver_client, torrent_downloader_logger)
         if "youtube" in chain_order:
             downloaders["youtube"] = YoutubeDownloader()
         first = None
@@ -208,6 +212,7 @@ class DefaultContainer:
             artist_repository=artist_repo,
             downloader_chain=first,
             download_dir=self.download_dir,
+            torrent_downloader_logger=torrent_downloader_logger,
         )
         self.injector.binder.bind(StreamService, to=stream_service)
 
