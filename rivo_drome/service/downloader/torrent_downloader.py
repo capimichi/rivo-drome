@@ -81,6 +81,12 @@ class TorrentDownloader(BaseDownloader):
             if file_index is None:
                 continue
 
+            # Conserve the extension of the torrent found
+            audio_path = audio_file.get("path", audio_file.get("name", ""))
+            _, ext = os.path.splitext(audio_path)
+            if ext:
+                dest_path = os.path.splitext(dest_path)[0] + ext.lower()
+
             stream_url = self._torrserver.get_file_stream_url(info_hash, file_index)
             return await self._download_file(stream_url, dest_path)
 

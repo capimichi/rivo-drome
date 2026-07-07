@@ -25,6 +25,7 @@ class NavidromeProxyService:
         self.proxy_logger = proxy_logger
         self.sample_manager = sample_manager
         self.client = httpx.AsyncClient(timeout=60.0)
+        self._last_credentials = None
 
     @staticmethod
     def _forward_headers(headers: dict) -> dict:
@@ -33,6 +34,15 @@ class NavidromeProxyService:
     async def proxy_request(self, request: Request, path: str) -> Any:
         target_url = f"{self.navidrome_url}/{path.lstrip('/')}"
         query_params = dict(request.query_params)
+        
+        if "u" in query_params:
+            creds = {}
+            for param in ["u", "p", "t", "s", "v", "c", "f"]:
+                val = query_params.get(param)
+                if val is not None:
+                    creds[param] = val
+            self._last_credentials = creds
+
         forward_headers = self._forward_headers(dict(request.headers))
         body = await request.body()
 

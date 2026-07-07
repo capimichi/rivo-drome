@@ -36,6 +36,7 @@ from rivo_drome.service.downloader.youtube_downloader import YoutubeDownloader
 from rivo_drome.service.example_service import ExampleService
 from rivo_drome.service.navidrome_proxy_service import NavidromeProxyService
 from rivo_drome.service.stream_service import StreamService
+from rivo_drome.client.navidrome_client import NavidromeClient
 
 
 class DefaultContainer:
@@ -209,6 +210,9 @@ class DefaultContainer:
         artist_repo = self.injector.get(ArtistRepository)
         track_repo = self.injector.get(TrackRepository)
         album_repo = self.injector.get(AlbumRepository)
+        navidrome_client = self.injector.get(NavidromeClient)
+        navidrome_config = self.injector.get(NavidromeConfig)
+        
         stream_service = StreamService(
             track_repository=track_repo,
             artist_repository=artist_repo,
@@ -216,6 +220,8 @@ class DefaultContainer:
             downloader_chain=first,
             download_dir=self.download_dir,
             torrent_downloader_logger=torrent_downloader_logger,
+            navidrome_client=navidrome_client,
+            navidrome_config=navidrome_config,
         )
 
         self.injector.binder.bind(StreamService, to=stream_service)

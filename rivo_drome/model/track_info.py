@@ -8,3 +8,5 @@ class TrackInfo:
     artist: str
     album: Optional[str] = None
     duration: Optional[int] = None
+    track_number: Optional[int] = None
+

@@ -10,7 +10,8 @@ from rivo_drome.repository.album_repository import AlbumRepository
 from rivo_drome.repository.artist_repository import ArtistRepository
 from rivo_drome.repository.track_repository import TrackRepository
 from rivo_drome.service.downloader.base_downloader import BaseDownloader
-
+from rivo_drome.client.navidrome_client import NavidromeClient
+from rivo_drome.config.navidrome_config import NavidromeConfig
 
 
 class StreamService:
@@ -23,6 +24,8 @@ class StreamService:
         downloader_chain: BaseDownloader,
         download_dir: str,
         torrent_downloader_logger: TorrentDownloaderLogger,
+        navidrome_client: NavidromeClient,
+        navidrome_config: NavidromeConfig,
     ):
         self._track_repo = track_repository
         self._artist_repo = artist_repository
@@ -30,6 +33,8 @@ class StreamService:
         self._downloader = downloader_chain
         self._download_dir = download_dir
         self._logger = torrent_downloader_logger
+        self._navidrome_client = navidrome_client
+        self._navidrome_config = navidrome_config
 
     async def get_track_path(self, track_id: int) -> Optional[str]:
         track = await self._track_repo.get_by_id(track_id)
@@ -59,18 +64,30 @@ class StreamService:
             if album:
                 album_name = album.title
 
-        os.makedirs(self._download_dir, exist_ok=True)
+        # 1. Controllo Preventivo su Navidrome
+        navidrome_path = await self._navidrome_client.search_track(artist_name, track.title)
+        if navidrome_path:
+            base_dir = self._navidrome_config.music_dir or self._download_dir
+            absolute_path = os.path.join(base_dir, navidrome_path)
+            if os.path.exists(absolute_path):
+                track.local_path = absolute_path
+                track.status = "downloaded"
+                await self._track_repo.save(track)
+                return absolute_path
 
-        ext = ".mp3"
-        dest_path = os.path.join(self._download_dir, f"{track_id}{ext}")
-
+        # 2. Generazione del Path per il Download
         track_info = TrackInfo(
             title=track.title,
             artist=artist_name,
             album=album_name,
             duration=track.duration,
+            track_number=track.track_number,
         )
 
+        from rivo_drome.helper.path_helper import build_structured_path
+        dest_path = build_structured_path(self._download_dir, track_info, ".mp3")
+
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
 
         result = await self._downloader.download(track_info, dest_path)
         if result is None:
@@ -80,6 +97,9 @@ class StreamService:
         track.local_path = result
         track.status = "downloaded"
         await self._track_repo.save(track)
+
+        # 3. Rescan Post-Download
+        await self._navidrome_client.trigger_rescan()
 
         return result
 
