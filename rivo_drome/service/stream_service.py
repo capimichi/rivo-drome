@@ -4,6 +4,7 @@ from typing import Optional
 from injector import inject
 
 from rivo_drome.entity.track import Track
+from rivo_drome.entity.album import Album
 from rivo_drome.logger.torrent_downloader_logger import TorrentDownloaderLogger
 from rivo_drome.model.track_info import TrackInfo
 from rivo_drome.repository.album_repository import AlbumRepository
@@ -11,6 +12,8 @@ from rivo_drome.repository.artist_repository import ArtistRepository
 from rivo_drome.repository.track_repository import TrackRepository
 from rivo_drome.service.downloader.base_downloader import BaseDownloader
 from rivo_drome.client.navidrome_client import NavidromeClient
+from rivo_drome.client.deezer_client import DeezerClient
+from rivo_drome.client.musicbrainz_client import MusicBrainzClient
 from rivo_drome.config.navidrome_config import NavidromeConfig
 
 
@@ -26,6 +29,8 @@ class StreamService:
         torrent_downloader_logger: TorrentDownloaderLogger,
         navidrome_client: NavidromeClient,
         navidrome_config: NavidromeConfig,
+        deezer_client: DeezerClient,
+        musicbrainz_client: MusicBrainzClient,
     ):
         self._track_repo = track_repository
         self._artist_repo = artist_repository
@@ -35,6 +40,8 @@ class StreamService:
         self._logger = torrent_downloader_logger
         self._navidrome_client = navidrome_client
         self._navidrome_config = navidrome_config
+        self._deezer_client = deezer_client
+        self._musicbrainz_client = musicbrainz_client
 
     async def get_track_path(self, track_id: int) -> Optional[str]:
         track = await self._track_repo.get_by_id(track_id)
@@ -58,11 +65,6 @@ class StreamService:
             return None
 
         artist_name = await self._get_artist_name(track)
-        album_name = None
-        if track.album_id:
-            album = await self._album_repo.get_by_id(track.album_id)
-            if album:
-                album_name = album.title
 
         # 1. Controllo Preventivo su Navidrome
         navidrome_path = await self._navidrome_client.search_track(artist_name, track.title)
@@ -75,6 +77,50 @@ class StreamService:
                 await self._track_repo.save(track)
                 return absolute_path
 
+        # Resolve alternative albums from MusicBrainz and Deezer
+        alt_album_titles = await self._musicbrainz_client.get_alternative_albums(artist_name, track.title)
+        alt_albums_found = []
+        for alt_title in alt_album_titles:
+            search_query = f"{artist_name} {alt_title}"
+            deezer_result = await self._deezer_client.search_album(search_query, limit=5)
+            albums_data = deezer_result.get("data", [])
+            if not albums_data:
+                continue
+            
+            best_match = None
+            for item in albums_data:
+                if item.get("title", "").lower().strip() == alt_title.lower().strip():
+                    best_match = item
+                    break
+            if not best_match:
+                best_match = albums_data[0]
+                
+            album_id = best_match.get("id")
+            if album_id:
+                existing_album = await self._album_repo.find_by_deezer_id(album_id)
+                if not existing_album:
+                    existing_album = Album(
+                        title=best_match.get("title", "Unknown"),
+                        artist_id=track.artist_id,
+                        cover_url=best_match.get("cover_big") or best_match.get("cover_medium"),
+                        deezer_id=album_id,
+                    )
+                    existing_album = await self._album_repo.save(existing_album)
+                
+                alt_albums_found.append(existing_album)
+
+        modified = False
+        for alb in alt_albums_found:
+            if not any(a.id == alb.id for a in track.albums):
+                track.albums.append(alb)
+                modified = True
+                
+        if modified:
+            await self._track_repo.save(track)
+
+        album_name = track.albums[0].title if track.albums else None
+        alternative_albums = [a.title for a in track.albums[1:]]
+
         # 2. Generazione del Path per il Download
         track_info = TrackInfo(
             title=track.title,
@@ -82,6 +128,7 @@ class StreamService:
             album=album_name,
             duration=track.duration,
             track_number=track.track_number,
+            alternative_albums=alternative_albums,
         )
 
         from rivo_drome.helper.path_helper import build_structured_path

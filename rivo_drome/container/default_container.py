@@ -38,6 +38,7 @@ from rivo_drome.service.navidrome_proxy_service import NavidromeProxyService
 from rivo_drome.service.stream_service import StreamService
 from rivo_drome.client.navidrome_client import NavidromeClient
 from rivo_drome.config.musicbrainz_config import MusicBrainzConfig
+from rivo_drome.client.musicbrainz_client import MusicBrainzClient
 
 
 class DefaultContainer:
@@ -217,6 +218,8 @@ class DefaultContainer:
         album_repo = self.injector.get(AlbumRepository)
         navidrome_client = self.injector.get(NavidromeClient)
         navidrome_config = self.injector.get(NavidromeConfig)
+        deezer_client = self.injector.get(DeezerClient)
+        musicbrainz_client = self.injector.get(MusicBrainzClient)
         
         stream_service = StreamService(
             track_repository=track_repo,
@@ -227,8 +230,11 @@ class DefaultContainer:
             torrent_downloader_logger=torrent_downloader_logger,
             navidrome_client=navidrome_client,
             navidrome_config=navidrome_config,
+            deezer_client=deezer_client,
+            musicbrainz_client=musicbrainz_client,
         )
 
         self.injector.binder.bind(StreamService, to=stream_service)
+
 
         self._db_manager = db_manager
