@@ -116,17 +116,25 @@ class SearchService:
         if deezer_id:
             existing = await self._track_repo.find_by_deezer_id(deezer_id)
             if existing:
+                if album_id and not any(a.id == album_id for a in existing.albums):
+                    album = await self._album_repo.get_by_id(album_id)
+                    if album:
+                        existing.albums.append(album)
+                        await self._track_repo.save(existing)
                 return existing
 
         track = Track(
             title=item.get("title", "Unknown"),
             artist_id=artist_id,
-            album_id=album_id,
             duration=item.get("duration"),
             track_number=item.get("track_position"),
             deezer_id=deezer_id,
             status="pending",
         )
+        if album_id:
+            album = await self._album_repo.get_by_id(album_id)
+            if album:
+                track.albums.append(album)
         return await self._track_repo.save(track)
 
     def _artist_to_subsonic(self, artist: Artist) -> SubsonicArtist:
@@ -146,15 +154,18 @@ class SearchService:
         )
 
     def _track_to_subsonic(self, track: Track) -> SubsonicChild:
+        primary_album = track.albums[0] if track.albums else None
+        primary_album_id = primary_album.id if primary_album else None
         return SubsonicChild(
             id=str(track.id),
             title=track.title,
             artistId=str(track.artist_id),
-            albumId=str(track.album_id) if track.album_id else None,
+            albumId=str(primary_album_id) if primary_album_id else None,
             duration=track.duration,
             track=track.track_number,
-            coverArt=f"al-{track.album_id}" if track.album_id else None,
+            coverArt=f"al-{primary_album_id}" if primary_album_id else None,
         )
+
 
     async def get_artist_by_id(self, artist_id: int) -> Artist | None:
         return await self._artist_repo.get_by_id(artist_id)
