@@ -28,10 +28,13 @@ class TorrentDownloader(BaseDownloader):
         self._logger = torrent_downloader_logger
 
     async def _do_download(self, track_info: TrackInfo, dest_path: str) -> Optional[str]:
-        # Se abbiamo le info sull'album, proviamo a cercare l'album in torrent (molto più probabile trovare un torrent del intero album/discografia)
         queries = []
         if track_info.album:
             queries.append(f"{track_info.artist} {track_info.album}")
+            
+        for alt_album in track_info.alternative_albums[:5]:
+            queries.append(f"{track_info.artist} {alt_album}")
+            
         queries.append(f"{track_info.artist} - {track_info.title}")
 
         results = []
@@ -45,6 +48,7 @@ class TorrentDownloader(BaseDownloader):
 
         if not results:
             return None
+
 
         for result in results[:5]:
             magnet = result.get("Link") or result.get("Magnet")
