@@ -1,7 +1,10 @@
+import logging
 import httpx
 from typing import List
 from injector import inject
 from rivo_drome.config.musicbrainz_config import MusicBrainzConfig
+
+logger = logging.getLogger(__name__)
 
 
 class MusicBrainzClient:
@@ -20,8 +23,10 @@ class MusicBrainzClient:
                 response = await client.get(url, params=params, headers=headers)
                 response.raise_for_status()
                 data = response.json()
-            except Exception:
+            except Exception as e:
+                logger.warning("MusicBrainz API request failed: %s", e)
                 return []
+
                 
         recordings = data.get("recordings", [])
         album_titles = []

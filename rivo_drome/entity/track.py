@@ -22,7 +22,8 @@ class Track(BaseEntity):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     artist = relationship("Artist", back_populates="tracks")
-    albums = relationship("Album", secondary=track_album, back_populates="tracks")
+    albums = relationship("Album", secondary=track_album, back_populates="tracks", lazy="joined")
+
 
 
 

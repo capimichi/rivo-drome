@@ -96,13 +96,18 @@ class DefaultContainer:
         self.session_dir_env = os.environ.get('SESSION_DIR', 'var/session')
         self.navidrome_url = os.environ.get('NAVIDROME_URL', 'http://localhost:4533')
         self.navidrome_music_dir = os.environ.get('NAVIDROME_MUSIC_DIR', '')
-        self.db_url = os.environ.get('DB_URL', 'mysql+pymysql://rivodrome:rivodrome@mariadb:3306/rivodrome')
+        self.db_url = os.environ.get(
+            'DB_URL', 'mysql+pymysql://rivodrome:rivodrome@mariadb:3306/rivodrome'
+        )
         self.jackett_url = os.environ.get('JACKETT_URL', 'http://localhost:9117')
         self.jackett_api_key = os.environ.get('JACKETT_API_KEY', '')
         self.torrserver_url = os.environ.get('TORRSERVER_URL', 'http://localhost:8090')
         self.downloader_chain_str = os.environ.get('DOWNLOADER_CHAIN', 'torrent,youtube')
         self.download_dir_env = os.environ.get('DOWNLOAD_DIR', 'var/music')
-        self.musicbrainz_user_agent = os.environ.get('MUSICBRAINZ_USER_AGENT', 'RivoDrome/1.0.0 (contact@example.com)')
+        self.musicbrainz_user_agent = os.environ.get(
+            'MUSICBRAINZ_USER_AGENT', 'RivoDrome/1.0.0 (contact@example.com)'
+        )
+
 
     def _init_logging(self):
         logging.basicConfig(
@@ -190,13 +195,19 @@ class DefaultContainer:
         jackett_client = JackettClient(jackett_url=self.jackett_url, api_key=self.jackett_api_key)
         self.injector.binder.bind(JackettClient, to=jackett_client)
 
-        torrserver_client = TorrServerClient(torrserver_url=self.torrserver_url, torrent_downloader_logger=torrent_downloader_logger)
+        torrserver_client = TorrServerClient(
+            torrserver_url=self.torrserver_url,
+            torrent_downloader_logger=torrent_downloader_logger,
+        )
         self.injector.binder.bind(TorrServerClient, to=torrserver_client)
 
         chain_order = [s.strip() for s in self.downloader_chain_str.split(",") if s.strip()]
         downloaders = {}
         if "torrent" in chain_order:
-            downloaders["torrent"] = TorrentDownloader(jackett_client, torrserver_client, torrent_downloader_logger)
+            downloaders["torrent"] = TorrentDownloader(
+                jackett_client, torrserver_client, torrent_downloader_logger
+            )
+
         if "youtube" in chain_order:
             downloaders["youtube"] = YoutubeDownloader()
         first = None

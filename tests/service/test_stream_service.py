@@ -40,11 +40,29 @@ def stream_service_setup():
         deezer_client=deezer_client,
         musicbrainz_client=musicbrainz_client,
     )
-    return svc, track_repo, artist_repo, album_repo, downloader_chain, navidrome_client, deezer_client, musicbrainz_client
+    return (
+        svc,
+        track_repo,
+        artist_repo,
+        album_repo,
+        downloader_chain,
+        navidrome_client,
+        deezer_client,
+        musicbrainz_client,
+    )
 
 @pytest.mark.asyncio
 async def test_stream_or_download_existing_on_navidrome(stream_service_setup):
-    svc, track_repo, artist_repo, album_repo, downloader_chain, navidrome_client, deezer_client, mb_client = stream_service_setup
+    (
+        svc,
+        track_repo,
+        artist_repo,
+        album_repo,
+        downloader_chain,
+        navidrome_client,
+        deezer_client,
+        mb_client,
+    ) = stream_service_setup
 
     track = Track(id=1, title="Bohemian Rhapsody", artist_id=2, track_number=11)
     artist = Artist(id=2, name="Queen")
@@ -54,18 +72,29 @@ async def test_stream_or_download_existing_on_navidrome(stream_service_setup):
     artist_repo.get_by_id = AsyncMock(return_value=artist)
     album_repo.get_by_id = AsyncMock(return_value=None)
     
-    navidrome_client.search_track = AsyncMock(return_value="Queen/A Night at the Opera/11 - Bohemian Rhapsody.mp3")
+    navidrome_path = "Queen/A Night at the Opera/11 - Bohemian Rhapsody.mp3"
+    navidrome_client.search_track = AsyncMock(return_value=navidrome_path)
 
     with patch("os.path.exists", return_value=True):
         res = await svc.stream_or_download(1)
-        assert res == "/music/Queen/A Night at the Opera/11 - Bohemian Rhapsody.mp3"
-        assert track.local_path == "/music/Queen/A Night at the Opera/11 - Bohemian Rhapsody.mp3"
+        expected_path = "/music/Queen/A Night at the Opera/11 - Bohemian Rhapsody.mp3"
+        assert res == expected_path
+        assert track.local_path == expected_path
         assert track.status == "downloaded"
         track_repo.save.assert_called_once_with(track)
 
 @pytest.mark.asyncio
 async def test_stream_or_download_trigger_download_and_rescan(stream_service_setup):
-    svc, track_repo, artist_repo, album_repo, downloader_chain, navidrome_client, deezer_client, mb_client = stream_service_setup
+    (
+        svc,
+        track_repo,
+        artist_repo,
+        album_repo,
+        downloader_chain,
+        navidrome_client,
+        deezer_client,
+        mb_client,
+    ) = stream_service_setup
 
     track = Track(id=1, title="Bohemian Rhapsody", artist_id=2, track_number=11)
     artist = Artist(id=2, name="Queen")
@@ -79,20 +108,30 @@ async def test_stream_or_download_trigger_download_and_rescan(stream_service_set
     navidrome_client.search_track = AsyncMock(return_value=None)
     mb_client.get_alternative_albums = AsyncMock(return_value=[])
     
-    downloader_chain.download = AsyncMock(return_value="/downloads/Queen/A Night at the Opera/11 - Bohemian Rhapsody.mp3")
+    download_path = "/downloads/Queen/A Night at the Opera/11 - Bohemian Rhapsody.mp3"
+    downloader_chain.download = AsyncMock(return_value=download_path)
     navidrome_client.trigger_rescan = AsyncMock()
 
     with patch("os.path.exists", return_value=False), patch("os.makedirs"):
         res = await svc.stream_or_download(1)
-        assert res == "/downloads/Queen/A Night at the Opera/11 - Bohemian Rhapsody.mp3"
-        assert track.local_path == "/downloads/Queen/A Night at the Opera/11 - Bohemian Rhapsody.mp3"
+        assert res == download_path
+        assert track.local_path == download_path
         assert track.status == "downloaded"
         track_repo.save.assert_called_once_with(track)
         navidrome_client.trigger_rescan.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_stream_or_download_alternative_albums_lookups(stream_service_setup):
-    svc, track_repo, artist_repo, album_repo, downloader_chain, navidrome_client, deezer_client, mb_client = stream_service_setup
+    (
+        svc,
+        track_repo,
+        artist_repo,
+        album_repo,
+        downloader_chain,
+        navidrome_client,
+        deezer_client,
+        mb_client,
+    ) = stream_service_setup
 
     track = Track(id=1, title="Bohemian Rhapsody", artist_id=2, track_number=11)
     artist = Artist(id=2, name="Queen")
