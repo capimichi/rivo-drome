@@ -3,6 +3,7 @@ from typing import Optional, List
 from injector import inject
 
 from rivo_drome.entity.track import Track
+from rivo_drome.entity.album import Album
 from rivo_drome.manager.db_manager import DbManager
 from rivo_drome.repository.base_repository import BaseRepository
 
@@ -42,7 +43,8 @@ class TrackRepository(BaseRepository):
         with self._db_manager.create_session() as session:
             return (
                 session.query(Track)
-                .filter(Track.album_id == album_id)
+                .join(Track.albums)
+                .filter(Album.id == album_id)
                 .order_by(Track.track_number)
                 .all()
             )
@@ -57,3 +59,4 @@ class TrackRepository(BaseRepository):
                 .filter(Track.artist_id == artist_id)
                 .all()
             )
+

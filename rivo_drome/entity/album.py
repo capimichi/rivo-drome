@@ -4,6 +4,7 @@ from sqlalchemy import BigInteger, Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 
 from rivo_drome.entity.base import BaseEntity
+from rivo_drome.entity.track_album import track_album
 
 
 class Album(BaseEntity):
@@ -19,4 +20,5 @@ class Album(BaseEntity):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     artist = relationship("Artist", back_populates="albums")
-    tracks = relationship("Track", back_populates="album", cascade="all, delete-orphan")
+    tracks = relationship("Track", secondary=track_album, back_populates="albums")
+

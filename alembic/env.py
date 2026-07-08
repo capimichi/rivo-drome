@@ -12,6 +12,8 @@ from rivo_drome.entity.base import BaseEntity
 from rivo_drome.entity.artist import Artist  # noqa: F401
 from rivo_drome.entity.album import Album  # noqa: F401
 from rivo_drome.entity.track import Track  # noqa: F401
+from rivo_drome.entity.track_album import track_album  # noqa: F401
+
 
 config = context.config
 

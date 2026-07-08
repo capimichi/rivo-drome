@@ -24,7 +24,6 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("title", sa.String(255), nullable=False),
         sa.Column("artist_id", sa.Integer(), nullable=False),
-        sa.Column("album_id", sa.Integer(), nullable=True),
         sa.Column("duration", sa.Integer(), nullable=True),
         sa.Column("track_number", sa.Integer(), nullable=True),
         sa.Column("deezer_id", BigInteger(), nullable=True),
@@ -34,12 +33,23 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["artist_id"], ["artist.id"]),
-        sa.ForeignKeyConstraint(["album_id"], ["album.id"]),
         sa.UniqueConstraint("deezer_id"),
     )
     op.create_index(op.f("ix_track_title"), "track", ["title"])
+    
+    op.create_table(
+        "track_album",
+        sa.Column("track_id", sa.Integer(), nullable=False),
+        sa.Column("album_id", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("track_id", "album_id"),
+        sa.ForeignKeyConstraint(["track_id"], ["track.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["album_id"], ["album.id"], ondelete="CASCADE"),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("track_album")
     op.drop_index(op.f("ix_track_title"), table_name="track")
     op.drop_table("track")
+
+
