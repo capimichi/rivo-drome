@@ -37,6 +37,7 @@ from rivo_drome.service.example_service import ExampleService
 from rivo_drome.service.navidrome_proxy_service import NavidromeProxyService
 from rivo_drome.service.stream_service import StreamService
 from rivo_drome.client.navidrome_client import NavidromeClient
+from rivo_drome.config.musicbrainz_config import MusicBrainzConfig
 
 
 class DefaultContainer:
@@ -100,6 +101,7 @@ class DefaultContainer:
         self.torrserver_url = os.environ.get('TORRSERVER_URL', 'http://localhost:8090')
         self.downloader_chain_str = os.environ.get('DOWNLOADER_CHAIN', 'torrent,youtube')
         self.download_dir_env = os.environ.get('DOWNLOAD_DIR', 'var/music')
+        self.musicbrainz_user_agent = os.environ.get('MUSICBRAINZ_USER_AGENT', 'RivoDrome/1.0.0 (contact@example.com)')
 
     def _init_logging(self):
         logging.basicConfig(
@@ -177,6 +179,9 @@ class DefaultContainer:
         self.injector.binder.bind(NavidromeProxyController, to=navidrome_proxy_controller)
 
         # --- Infrastruttura: binding espliciti solo per classi con parametri letterali ---
+
+        musicbrainz_config = MusicBrainzConfig(user_agent=self.musicbrainz_user_agent)
+        self.injector.binder.bind(MusicBrainzConfig, to=musicbrainz_config)
 
         db_manager = DbManager(db_url=self.db_url)
         self.injector.binder.bind(DbManager, to=db_manager)
