@@ -10,5 +10,7 @@ class TrackInfo:
     duration: Optional[int] = None
     track_number: Optional[int] = None
     alternative_albums: List[str] = field(default_factory=list)
+    deezer_id: Optional[int] = None
+
 
 

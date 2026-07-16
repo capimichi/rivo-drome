@@ -39,6 +39,11 @@ from rivo_drome.service.stream_service import StreamService
 from rivo_drome.client.navidrome_client import NavidromeClient
 from rivo_drome.config.musicbrainz_config import MusicBrainzConfig
 from rivo_drome.client.musicbrainz_client import MusicBrainzClient
+from rivo_drome.config.spotiflac_config import SpotiFlacConfig
+from rivo_drome.client.odesli_client import OdesliClient
+from rivo_drome.client.spotiflac_client import SpotiFlacClient
+from rivo_drome.service.downloader.spotiflac_downloader import SpotiFlacDownloader
+
 
 
 class DefaultContainer:
@@ -107,6 +112,9 @@ class DefaultContainer:
         self.musicbrainz_user_agent = os.environ.get(
             'MUSICBRAINZ_USER_AGENT', 'RivoDrome/1.0.0 (contact@example.com)'
         )
+        self.spotiflac_api_url = os.environ.get('SPOTIFLAC_API_URL', 'http://localhost:8080')
+        self.spotiflac_username = os.environ.get('SPOTIFLAC_USERNAME', None)
+        self.spotiflac_password = os.environ.get('SPOTIFLAC_PASSWORD', None)
 
 
     def _init_logging(self):
@@ -192,6 +200,13 @@ class DefaultContainer:
         db_manager = DbManager(db_url=self.db_url)
         self.injector.binder.bind(DbManager, to=db_manager)
 
+        spotiflac_config = SpotiFlacConfig(
+            base_url=self.spotiflac_api_url,
+            username=self.spotiflac_username,
+            password=self.spotiflac_password,
+        )
+        self.injector.binder.bind(SpotiFlacConfig, to=spotiflac_config)
+
         jackett_client = JackettClient(jackett_url=self.jackett_url, api_key=self.jackett_api_key)
         self.injector.binder.bind(JackettClient, to=jackett_client)
 
@@ -210,6 +225,9 @@ class DefaultContainer:
 
         if "youtube" in chain_order:
             downloaders["youtube"] = YoutubeDownloader()
+
+        if "spotiflac" in chain_order:
+            downloaders["spotiflac"] = self.injector.get(SpotiFlacDownloader)
         first = None
         prev = None
         for name in chain_order:

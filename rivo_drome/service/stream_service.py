@@ -129,6 +129,7 @@ class StreamService:
             duration=track.duration,
             track_number=track.track_number,
             alternative_albums=alternative_albums,
+            deezer_id=track.deezer_id,
         )
 
         from rivo_drome.helper.path_helper import build_structured_path
