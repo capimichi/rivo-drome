@@ -7,7 +7,7 @@ from rivo_drome.client.odesli_client import OdesliClient
 @respx.mock
 async def test_odesli_client_success():
     deezer_id = 12345
-    target_url = f"https://api.odesli.co/v1/links?url=https://www.deezer.com/track/{deezer_id}&userCountry=IT"
+    target_url = f"https://api.song.link/v1-alpha.1/links?url=https://www.deezer.com/track/{deezer_id}&userCountry=IT"
     
     mock_response = {
         "linksByPlatform": {
@@ -28,7 +28,7 @@ async def test_odesli_client_success():
 @respx.mock
 async def test_odesli_client_failure():
     deezer_id = 12345
-    target_url = f"https://api.odesli.co/v1/links?url=https://www.deezer.com/track/{deezer_id}&userCountry=IT"
+    target_url = f"https://api.song.link/v1-alpha.1/links?url=https://www.deezer.com/track/{deezer_id}&userCountry=IT"
     respx.get(target_url).mock(return_value=Response(500))
     
     client = OdesliClient()

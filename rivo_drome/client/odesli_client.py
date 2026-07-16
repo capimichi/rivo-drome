@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 class OdesliClient:
-    API_URL = "https://api.odesli.co/v1/links"
+    API_URL = "https://api.song.link/v1-alpha.1/links"
 
     async def get_track_links(self, deezer_id: int) -> Dict[str, Optional[str]]:
         deezer_url = f"https://www.deezer.com/track/{deezer_id}"
