@@ -20,7 +20,7 @@ class SpotiFlacClient:
             "url": url,
             "service": service,
             "quality": quality,
-            "output_dir": output_dir
+            "output_dir": "./downloads"
         }
         
         auth = None
@@ -35,8 +35,29 @@ class SpotiFlacClient:
                 
                 files = data.get("files", [])
                 if files and data.get("status") == "completed":
-                    return files[0]
+                    internal_file_path = files[0]
+                    import os
+                    filename = os.path.basename(internal_file_path)
+                    
+                    from urllib.parse import quote
+                    encoded_filename = quote(filename)
+                    download_url = f"{self._base_url}/downloads/{encoded_filename}"
+                    
+                    os.makedirs(output_dir, exist_ok=True)
+                    local_dest_path = os.path.join(output_dir, filename)
+                    
+                    logger.info("SpotiFlacClient: downloading file from HTTP endpoint: %s", download_url)
+                    async with client.stream("GET", download_url, auth=auth) as response_stream:
+                        response_stream.raise_for_status()
+                        with open(local_dest_path, "wb") as f:
+                            async for chunk in response_stream.aiter_bytes(chunk_size=8192):
+                                f.write(chunk)
+                                
+                    logger.info("SpotiFlacClient: successfully downloaded to local path: %s", local_dest_path)
+                    return local_dest_path
+                    
                 return None
             except Exception as e:
                 logger.error("SpotiFLAC REST API download request failed for url %s: %s", url, e)
                 return None
+
