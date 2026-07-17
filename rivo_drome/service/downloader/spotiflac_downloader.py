@@ -50,7 +50,10 @@ class SpotiFlacDownloader(BaseDownloader):
                 url=url,
                 service=spotiflac_service,
                 quality=quality,
-                output_dir=output_dir
+                output_dir=output_dir,
+                track_name=track_info.title,
+                artist_name=track_info.artist,
+                album_name=track_info.album
             )
 
             if downloaded_file and os.path.exists(downloaded_file):

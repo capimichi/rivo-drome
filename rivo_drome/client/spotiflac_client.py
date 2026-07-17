@@ -14,7 +14,16 @@ class SpotiFlacClient:
         self._username = config.username
         self._password = config.password
 
-    async def download_sync(self, url: str, service: str, quality: str, output_dir: str) -> Optional[str]:
+    async def download_sync(
+        self,
+        url: str,
+        service: str,
+        quality: str,
+        output_dir: str,
+        track_name: Optional[str] = None,
+        artist_name: Optional[str] = None,
+        album_name: Optional[str] = None
+    ) -> Optional[str]:
         target_url = f"{self._base_url}/api/download/sync"
         payload = {
             "url": url,
@@ -22,6 +31,12 @@ class SpotiFlacClient:
             "quality": quality,
             "output_dir": "./downloads"
         }
+        if track_name:
+            payload["track_name"] = track_name
+        if artist_name:
+            payload["artist_name"] = artist_name
+        if album_name:
+            payload["album_name"] = album_name
         
         auth = None
         if self._username and self._password:

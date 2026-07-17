@@ -30,7 +30,7 @@ async def test_spotiflac_downloader_success(tmp_path):
     # We must mock file creation on success
     temp_downloaded_file = tmp_path / "downloads" / "Queen - Bohemian Rhapsody.flac"
     
-    def side_effect(url, service, quality, output_dir):
+    def side_effect(url, service, quality, output_dir, **kwargs):
         if service == "qobuz":
             return None
         elif service == "amazon":
@@ -53,6 +53,22 @@ async def test_spotiflac_downloader_success(tmp_path):
     
     # Ensure Qobuz was tried first, then Amazon (which succeeded), and Tidal was not tried
     assert spotiflac_client.download_sync.call_count == 2
-    spotiflac_client.download_sync.assert_any_call(url="https://open.qobuz.com/track/qobuz_123", service="qobuz", quality="6", output_dir=os.path.dirname(dest_path))
-    spotiflac_client.download_sync.assert_any_call(url="https://music.amazon.com/tracks/amazon_123", service="amazon", quality="", output_dir=os.path.dirname(dest_path))
+    spotiflac_client.download_sync.assert_any_call(
+        url="https://open.qobuz.com/track/qobuz_123",
+        service="qobuz",
+        quality="6",
+        output_dir=os.path.dirname(dest_path),
+        track_name="Bohemian Rhapsody",
+        artist_name="Queen",
+        album_name=None
+    )
+    spotiflac_client.download_sync.assert_any_call(
+        url="https://music.amazon.com/tracks/amazon_123",
+        service="amazon",
+        quality="",
+        output_dir=os.path.dirname(dest_path),
+        track_name="Bohemian Rhapsody",
+        artist_name="Queen",
+        album_name=None
+    )
 
