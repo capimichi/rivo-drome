@@ -43,6 +43,9 @@ from rivo_drome.config.spotiflac_config import SpotiFlacConfig
 from rivo_drome.client.odesli_client import OdesliClient
 from rivo_drome.client.spotiflac_client import SpotiFlacClient
 from rivo_drome.service.downloader.spotiflac_downloader import SpotiFlacDownloader
+from rivo_drome.config.slskd_config import SlskdConfig
+from rivo_drome.client.slskd_client import SlskdClient
+from rivo_drome.service.downloader.soulseek_downloader import SoulseekDownloader
 
 
 
@@ -115,6 +118,11 @@ class DefaultContainer:
         self.spotiflac_api_url = os.environ.get('SPOTIFLAC_API_URL', 'http://localhost:8080')
         self.spotiflac_username = os.environ.get('SPOTIFLAC_USERNAME', None)
         self.spotiflac_password = os.environ.get('SPOTIFLAC_PASSWORD', None)
+        self.slskd_api_url = os.environ.get('SLSKD_API_URL', 'http://localhost:5030')
+        self.slskd_api_key = os.environ.get('SLSKD_API_KEY', '')
+        self.slskd_downloads_dir = os.environ.get('SLSKD_DOWNLOADS_DIR', 'var/slskd/downloads')
+        self.slskd_search_timeout = int(os.environ.get('SLSKD_SEARCH_TIMEOUT', '10'))
+        self.slskd_download_timeout = int(os.environ.get('SLSKD_DOWNLOAD_TIMEOUT', '60'))
 
 
     def _init_logging(self):
@@ -207,6 +215,15 @@ class DefaultContainer:
         )
         self.injector.binder.bind(SpotiFlacConfig, to=spotiflac_config)
 
+        slskd_config = SlskdConfig(
+            api_url=self.slskd_api_url,
+            api_key=self.slskd_api_key,
+            downloads_dir=self.slskd_downloads_dir,
+            search_timeout=self.slskd_search_timeout,
+            download_timeout=self.slskd_download_timeout
+        )
+        self.injector.binder.bind(SlskdConfig, to=slskd_config)
+
         jackett_client = JackettClient(jackett_url=self.jackett_url, api_key=self.jackett_api_key)
         self.injector.binder.bind(JackettClient, to=jackett_client)
 
@@ -228,6 +245,9 @@ class DefaultContainer:
 
         if "spotiflac" in chain_order:
             downloaders["spotiflac"] = self.injector.get(SpotiFlacDownloader)
+
+        if "soulseek" in chain_order:
+            downloaders["soulseek"] = self.injector.get(SoulseekDownloader)
         first = None
         prev = None
         for name in chain_order:

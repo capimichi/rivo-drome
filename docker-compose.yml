@@ -24,6 +24,8 @@ services:
       - .env
     volumes:
       - .:/app
+      - ${NAVIDROME_MUSIC_HOST_DIR}:${NAVIDROME_MUSIC_DIR}
+      - ${SLSKD_DOWNLOADS_HOST_DIR}:${SLSKD_DOWNLOADS_DIR}
     depends_on:
       - mariadb
     restart: unless-stopped
