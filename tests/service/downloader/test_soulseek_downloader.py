@@ -44,7 +44,8 @@ async def test_do_download_success(tmp_path):
         }
     ]
     client.get_search_responses = AsyncMock(return_value=mock_responses)
-    client.enqueue_download = AsyncMock(return_value={"id": "transfer_id_456"})
+    client.get_search_status = AsyncMock(return_value={"isComplete": True})
+    client.enqueue_download = AsyncMock(return_value={"enqueued": [{"id": "transfer_id_456", "filename": "artist\\album\\song.flac"}]})
     
     # Mock active downloads list: first Queued, then Succeeded
     client.get_downloads = AsyncMock()

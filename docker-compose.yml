@@ -28,6 +28,11 @@ services:
       - ${SLSKD_DOWNLOADS_HOST_DIR}:${SLSKD_DOWNLOADS_DIR}
     depends_on:
       - mariadb
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 volumes:

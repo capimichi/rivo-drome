@@ -27,7 +27,7 @@ class SoulseekDownloader(BaseDownloader):
             logger.warning("SoulseekDownloader: search failed to initialize.")
             return None
 
-        best_file = None
+        final_responses = []
         search_limit = self._config.search_timeout
         elapsed_search = 0
         
@@ -35,33 +35,55 @@ class SoulseekDownloader(BaseDownloader):
         while elapsed_search < search_limit:
             responses = await self._client.get_search_responses(search_id)
             if responses:
-                best_file = self._select_best_file(responses)
-                if best_file:
-                    break
+                final_responses = responses
+            
+            status = await self._client.get_search_status(search_id)
+            if status and status.get("isComplete"):
+                logger.info("SoulseekDownloader: search completed on slskd.")
+                break
+                
             await asyncio.sleep(2)
             elapsed_search += 2
 
         # Clean up search
         await self._client.delete_search(search_id)
 
-        if not best_file:
+        candidates = self._get_sorted_candidates(final_responses)
+        if not candidates:
             logger.warning("SoulseekDownloader: no suitable files found for '%s'", query)
             return None
 
-        username = best_file["username"]
-        remote_filename = best_file["filename"]
-        file_size = best_file["size"]
+        # Try enqueuing candidates in order of preference
+        transfer_id = None
+        chosen_candidate = None
 
-        logger.info("SoulseekDownloader: enqueuing file download from user '%s': %s", username, remote_filename)
-        enqueue_res = await self._client.enqueue_download(username, remote_filename, file_size)
-        if not enqueue_res:
-            logger.error("SoulseekDownloader: enqueue request failed.")
+        for candidate in candidates:
+            username = candidate["username"]
+            remote_filename = candidate["filename"]
+            file_size = candidate["size"]
+
+            logger.info("SoulseekDownloader: enqueuing file download from user '%s': %s", username, remote_filename)
+            enqueue_res = await self._client.enqueue_download(username, remote_filename, file_size)
+            if not enqueue_res:
+                logger.warning("SoulseekDownloader: enqueue request failed for user '%s'. Trying next candidate...", username)
+                continue
+
+            enqueued_list = enqueue_res.get("enqueued", [])
+            if enqueued_list and isinstance(enqueued_list, list):
+                transfer_id = enqueued_list[0].get("id")
+
+            if transfer_id:
+                chosen_candidate = candidate
+                break
+            else:
+                logger.warning("SoulseekDownloader: enqueue response for user '%s' did not contain a transfer ID. Trying next...", username)
+
+        if not chosen_candidate or not transfer_id:
+            logger.error("SoulseekDownloader: failed to enqueue download from any candidate.")
             return None
 
-        transfer_id = enqueue_res.get("id")
-        if not transfer_id:
-            logger.error("SoulseekDownloader: enqueue response did not contain a transfer ID.")
-            return None
+        username = chosen_candidate["username"]
+        remote_filename = chosen_candidate["filename"]
 
         # 2. Download Polling Loop
         download_limit = self._config.download_timeout
@@ -70,8 +92,17 @@ class SoulseekDownloader(BaseDownloader):
 
         while elapsed_download < download_limit:
             downloads = await self._client.get_downloads()
+            flat_downloads = []
+            for item in downloads:
+                if "directories" in item:
+                    for dir_item in item.get("directories", []):
+                        for file_item in dir_item.get("files", []):
+                            flat_downloads.append(file_item)
+                else:
+                    flat_downloads.append(item)
+                    
             matched_transfer = None
-            for transfer in downloads:
+            for transfer in flat_downloads:
                 if transfer.get("username") == username and transfer.get("filename") == remote_filename:
                     matched_transfer = transfer
                     break
@@ -79,10 +110,10 @@ class SoulseekDownloader(BaseDownloader):
             if matched_transfer:
                 state = matched_transfer.get("state")
                 logger.info("SoulseekDownloader: current download state: %s", state)
-                if state == "Succeeded":
+                if "Succeeded" in state:
                     download_success = True
                     break
-                elif state in ["Errored", "Cancelled", "TimedOut", "Aborted", "Failed"]:
+                elif any(s in state for s in ["Errored", "Cancelled", "TimedOut", "Aborted", "Failed"]):
                     logger.warning("SoulseekDownloader: download transfer failed with state: %s", state)
                     break
             else:
@@ -106,11 +137,11 @@ class SoulseekDownloader(BaseDownloader):
         # Look in multiple possible locations where slskd might download the file
         possible_paths = [
             os.path.join(self._config.downloads_dir, normalized_relative_path),
+            os.path.join(self._config.downloads_dir, os.path.basename(normalized_relative_path)),
             os.path.join(self._config.downloads_dir, username, normalized_relative_path),
-            os.path.join(self._config.downloads_dir, "completed", username, normalized_relative_path),
-            os.path.join(self._config.downloads_dir, "completed", normalized_relative_path),
+            os.path.join(self._config.downloads_dir, username, os.path.basename(normalized_relative_path)),
         ]
-        
+
         local_source_path = None
         for path in possible_paths:
             if os.path.exists(path):
@@ -145,45 +176,40 @@ class SoulseekDownloader(BaseDownloader):
         await self._client.delete_download(username, transfer_id)
         return final_dest_path
 
-    def _select_best_file(self, responses: List[Dict]) -> Optional[Dict]:
-        best_candidate = None
-        
+    def _get_sorted_candidates(self, responses: List[Dict]) -> List[Dict]:
+        candidates = []
         for response in responses:
             username = response.get("username")
             files = response.get("files", [])
             for f in files:
                 filename = f.get("filename", "")
                 extension = f.get("extension", "").lower().strip()
+                if not extension:
+                    _, ext_from_filename = os.path.splitext(filename)
+                    extension = ext_from_filename.lower().lstrip(".")
+                
                 bitrate = f.get("bitRate", 0)
                 size = f.get("size", 0)
                 
-                if extension not in ["flac", "mp3"]:
+                if extension not in ["flac", "mp3", "m4a"]:
                     continue
 
-                candidate = {
+                candidates.append({
                     "username": username,
                     "filename": filename,
                     "extension": extension,
                     "bitRate": bitrate,
                     "size": size
-                }
+                })
+        
+        # Sort candidates
+        def sort_key(c):
+            ext_map = {"flac": 3, "mp3": 2, "m4a": 1}
+            return (ext_map.get(c["extension"], 0), c["bitRate"], c["size"])
+            
+        candidates.sort(key=sort_key, reverse=True)
+        return candidates
 
-                if best_candidate is None:
-                    best_candidate = candidate
-                    continue
-
-                # Prefer FLAC over MP3
-                if candidate["extension"] == "flac" and best_candidate["extension"] != "flac":
-                    best_candidate = candidate
-                elif candidate["extension"] != "flac" and best_candidate["extension"] == "flac":
-                    continue
-                else:
-                    # If both are same extension, select higher bitrate
-                    if candidate["bitRate"] > best_candidate["bitRate"]:
-                        best_candidate = candidate
-                    elif candidate["bitRate"] == best_candidate["bitRate"]:
-                        # If same bitrate, select larger file (presumably better sample size)
-                        if candidate["size"] > best_candidate["size"]:
-                            best_candidate = candidate
-
-        return best_candidate
+    def _select_best_file(self, responses: List[Dict]) -> Optional[Dict]:
+        candidates = self._get_sorted_candidates(responses)
+        return candidates[0] if candidates else None
