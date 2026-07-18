@@ -5,8 +5,11 @@
 - Entry points: `namespace/api.py` (FastAPI app) and `namespace/cli.py` (CLI root). Extend new features by adding modules to the closest layer and binding them in the container.
 
 ## Development Setup & Commands
+- Use the Docker container to run Python commands (e.g., CLI, tests, migrations) via `docker compose run --rm proxy <command>`.
+  - For example, to run tests: `docker compose run --rm proxy pytest`
+  - To run a CLI command: `docker compose run --rm proxy python -m namespace.cli example`
 - Install deps with your preferred manager (e.g., `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`). Add a `requirements.txt` if you introduce dependencies.
-- Run API locally: `uvicorn namespace.api:app --reload --port 8459`.
+- Run API locally: `uvicorn namespace.api:app --reload --port 8459` or run the container system via `docker compose up`.
 - Call the CLI example: `python -m namespace.cli example`.
 - Format/import-sort before pushing; if you add tools like `ruff` or `black`, document and pin versions in the repo.
 

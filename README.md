@@ -67,15 +67,29 @@ Tutte le variabili in `.env`:
 
 ## Migrazioni DB
 
+È consigliato eseguire le migrazioni all'interno del container Docker:
+
+```bash
+docker compose run --rm proxy alembic upgrade head
+```
+
+O in locale:
+
 ```bash
 alembic upgrade head
 ```
 
-## Comandi CLI
+## Sviluppo e Test con Docker
 
-È possibile eseguire comandi da terminale all'interno del container Docker usando `docker compose run --rm`.
+È possibile eseguire qualsiasi comando Python, test o comando CLI all'interno del container Docker:
 
-### Download Tracce (`track:download`)
+### Eseguire i test (pytest)
+
+```bash
+docker compose run --rm proxy pytest
+```
+
+### Comandi CLI
 
 Per cercare e scaricare una traccia direttamente dalla CLI (avviando la catena di download):
 
