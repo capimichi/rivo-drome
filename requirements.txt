@@ -20,3 +20,6 @@ click>=8.1.7
 # Testing (opzionali per il runtime, raccomandati per lo sviluppo/CI)
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
+
+# Queue & Cache
+redis>=5.0.0

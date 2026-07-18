@@ -1,5 +1,9 @@
 import os
+import uuid
 from typing import Optional
+from fastapi import HTTPException
+from rivo_drome.manager.queue_manager import QueueManager
+from rivo_drome.model.queue_task import DownloadTaskPayload
 
 from injector import inject
 
@@ -31,6 +35,7 @@ class StreamService:
         navidrome_config: NavidromeConfig,
         deezer_client: DeezerClient,
         musicbrainz_client: MusicBrainzClient,
+        queue_manager: QueueManager = None,
     ):
         self._track_repo = track_repository
         self._artist_repo = artist_repository
@@ -42,6 +47,7 @@ class StreamService:
         self._navidrome_config = navidrome_config
         self._deezer_client = deezer_client
         self._musicbrainz_client = musicbrainz_client
+        self._queue_manager = queue_manager
 
     async def get_track_path(self, track_id: int) -> Optional[str]:
         track = await self._track_repo.get_by_id(track_id)
@@ -122,6 +128,27 @@ class StreamService:
         alternative_albums = [a.title for a in track.albums[1:]]
 
         # 2. Generazione del Path per il Download
+        if self._queue_manager:
+            task = DownloadTaskPayload(
+                task_id=str(uuid.uuid4()),
+                song_id=track.id,
+                artist_name=artist_name,
+                title=track.title
+            )
+            self._queue_manager.enqueue_task("download", task)
+            raise HTTPException(status_code=404, detail="Audio in coda di download.")
+
+        return await self.process_download(track.id)
+
+    async def process_download(self, track_id: int) -> Optional[str]:
+        track = await self._track_repo.get_by_id(track_id)
+        if track is None:
+            return None
+            
+        artist_name = await self._get_artist_name(track)
+        album_name = track.albums[0].title if track.albums else None
+        alternative_albums = [a.title for a in track.albums[1:]]
+
         track_info = TrackInfo(
             title=track.title,
             artist=artist_name,

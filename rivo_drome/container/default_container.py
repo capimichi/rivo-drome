@@ -46,6 +46,11 @@ from rivo_drome.service.downloader.spotiflac_downloader import SpotiFlacDownload
 from rivo_drome.config.slskd_config import SlskdConfig
 from rivo_drome.client.slskd_client import SlskdClient
 from rivo_drome.service.downloader.soulseek_downloader import SoulseekDownloader
+from rivo_drome.client.redis_client import RedisClient
+from rivo_drome.logger.queue_logger import QueueLogger
+from rivo_drome.manager.queue_manager import QueueManager
+from rivo_drome.client.redis_client import RedisClient
+from rivo_drome.logger.queue_logger import QueueLogger
 
 
 
@@ -123,7 +128,9 @@ class DefaultContainer:
         self.slskd_downloads_dir = os.environ.get('SLSKD_DOWNLOADS_DIR', 'var/slskd/downloads')
         self.slskd_search_timeout = int(os.environ.get('SLSKD_SEARCH_TIMEOUT', '10'))
         self.slskd_download_timeout = int(os.environ.get('SLSKD_DOWNLOAD_TIMEOUT', '60'))
-
+        self.redis_host = os.environ.get('REDIS_HOST', 'redis')
+        self.redis_port = int(os.environ.get('REDIS_PORT', '6379'))
+        self.redis_password = os.environ.get('REDIS_PASSWORD', '')
 
     def _init_logging(self):
         logging.basicConfig(
@@ -227,6 +234,11 @@ class DefaultContainer:
         jackett_client = JackettClient(jackett_url=self.jackett_url, api_key=self.jackett_api_key)
         self.injector.binder.bind(JackettClient, to=jackett_client)
 
+        redis_client = RedisClient(
+            host=self.redis_host, port=self.redis_port, password=self.redis_password
+        )
+        self.injector.binder.bind(RedisClient, to=redis_client)
+
         torrserver_client = TorrServerClient(
             torrserver_url=self.torrserver_url,
             torrent_downloader_logger=torrent_downloader_logger,
@@ -269,6 +281,7 @@ class DefaultContainer:
         navidrome_config = self.injector.get(NavidromeConfig)
         deezer_client = self.injector.get(DeezerClient)
         musicbrainz_client = self.injector.get(MusicBrainzClient)
+        queue_manager = self.injector.get(QueueManager)
         
         stream_service = StreamService(
             track_repository=track_repo,
@@ -281,6 +294,7 @@ class DefaultContainer:
             navidrome_config=navidrome_config,
             deezer_client=deezer_client,
             musicbrainz_client=musicbrainz_client,
+            queue_manager=queue_manager,
         )
 
         self.injector.binder.bind(StreamService, to=stream_service)

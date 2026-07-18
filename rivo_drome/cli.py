@@ -2,6 +2,7 @@ import click
 
 from rivo_drome.command.example_command import ExampleCommand
 from rivo_drome.command.track_download_command import TrackDownloadCommand
+from rivo_drome.command.cron_command import CronCommand
 from rivo_drome.container.default_container import DefaultContainer
 
 
@@ -19,6 +20,9 @@ cli.add_command(example_command.to_click_command())
 
 track_download_command: TrackDownloadCommand = default_container.get(TrackDownloadCommand)
 cli.add_command(track_download_command.to_click_command())
+
+cron_command: CronCommand = default_container.get(CronCommand)
+cli.add_command(cron_command.to_click_command())
 
 
 if __name__ == '__main__':
