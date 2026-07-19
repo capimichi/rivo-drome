@@ -7,7 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY . .
 
-RUN pip install --no-cache-dir uv \
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uv \
     && uv pip install --system --no-cache -r requirements.txt \
     && chmod +x entrypoint.sh
 

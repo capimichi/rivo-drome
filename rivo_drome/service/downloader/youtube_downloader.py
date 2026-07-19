@@ -1,10 +1,13 @@
 import asyncio
 import os
 import subprocess
+import logging
 from typing import Optional
 
 from rivo_drome.model.track_info import TrackInfo
 from rivo_drome.service.downloader.base_downloader import BaseDownloader
+
+logger = logging.getLogger(__name__)
 
 
 class YoutubeDownloader(BaseDownloader):
@@ -24,16 +27,17 @@ class YoutubeDownloader(BaseDownloader):
                 "--audio-format", "mp3",
                 "--audio-quality", "0",
                 "-o", output_template,
-                "--default-search", query,
                 "--max-filesize", "50M",
                 "--quiet",
                 "--no-warnings",
+                query,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await proc.communicate()
 
             if proc.returncode != 0:
+                logger.error("YoutubeDownloader: yt-dlp failed with exit code %d. stderr: %s", proc.returncode, stderr.decode())
                 return None
 
             expected_file = os.path.splitext(dest_path)[0] + ".mp3"
@@ -51,4 +55,5 @@ class YoutubeDownloader(BaseDownloader):
 
             return None
         except FileNotFoundError:
+            logger.error("YoutubeDownloader: yt-dlp binary or dependency not found on system path.")
             return None

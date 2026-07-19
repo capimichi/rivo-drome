@@ -19,7 +19,11 @@ class SoulseekDownloader(BaseDownloader):
         self._config = config
 
     async def _do_download(self, track_info: TrackInfo, dest_path: str) -> Optional[str]:
-        query = f"{track_info.artist} - {track_info.title}"
+        import re
+        cleaned_title = track_info.title
+        cleaned_title = re.sub(r'[\(\[][^\]\)]*?(?:feat|ft|with|featuring)[^\]\)]*?[\)\]]', '', cleaned_title, flags=re.IGNORECASE)
+        cleaned_title = re.sub(r'\s+', ' ', cleaned_title).strip()
+        query = f"{track_info.artist} - {cleaned_title}"
         logger.info("SoulseekDownloader: starting search query '%s'", query)
         
         search_id = await self._client.search(query)
@@ -129,29 +133,20 @@ class SoulseekDownloader(BaseDownloader):
             return None
 
         # 3. Handle Completed File copy/move
-        # Normalise Windows path backslashes to forward slashes
-        normalized_relative_path = remote_filename.replace("\\", "/")
-        if normalized_relative_path.startswith("/"):
-            normalized_relative_path = normalized_relative_path.lstrip("/")
-
-        # Look in multiple possible locations where slskd might download the file
-        possible_paths = [
-            os.path.join(self._config.downloads_dir, normalized_relative_path),
-            os.path.join(self._config.downloads_dir, os.path.basename(normalized_relative_path)),
-            os.path.join(self._config.downloads_dir, username, normalized_relative_path),
-            os.path.join(self._config.downloads_dir, username, os.path.basename(normalized_relative_path)),
-        ]
-
+        target_filename = os.path.basename(remote_filename.replace("\\", "/"))
         local_source_path = None
-        for path in possible_paths:
-            if os.path.exists(path):
-                local_source_path = path
+        
+        # Search recursively under downloads_dir for the target filename
+        for root, dirs, files in os.walk(self._config.downloads_dir):
+            if target_filename in files:
+                local_source_path = os.path.join(root, target_filename)
                 break
 
         if not local_source_path:
             logger.error(
-                "SoulseekDownloader: completed download file not found. Tried paths: %s", 
-                possible_paths
+                "SoulseekDownloader: completed download file not found under %s for filename: %s", 
+                self._config.downloads_dir,
+                target_filename
             )
             await self._client.delete_download(username, transfer_id)
             return None

@@ -1,7 +1,10 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Optional
 
 from rivo_drome.model.track_info import TrackInfo
+
+logger = logging.getLogger(__name__)
 
 
 class BaseDownloader(ABC):
@@ -13,10 +16,20 @@ class BaseDownloader(ABC):
         return downloader
 
     async def download(self, track_info: TrackInfo, dest_path: str) -> Optional[str]:
+        downloader_name = self.__class__.__name__
+        logger.info("%s: starting download attempt for '%s - %s'", downloader_name, track_info.artist, track_info.title)
+        
         result = await self._do_download(track_info, dest_path)
-        if result is None and self._next is not None:
+        if result:
+            logger.info("%s: download succeeded!", downloader_name)
+            return result
+            
+        logger.warning("%s: download failed or skipped.", downloader_name)
+        if self._next is not None:
+            logger.info("BaseDownloader: transitioning to next downloader in chain: %s", self._next.__class__.__name__)
             return await self._next.download(track_info, dest_path)
-        return result
+            
+        return None
 
     @abstractmethod
     async def _do_download(self, track_info: TrackInfo, dest_path: str) -> Optional[str]:
