@@ -20,6 +20,8 @@ from rivo_drome.generator.example_generator import ExampleGenerator
 from rivo_drome.helper.example_helper import ExampleHelper
 from rivo_drome.logger.proxy_logger import ProxyLogger
 from rivo_drome.logger.torrent_downloader_logger import TorrentDownloaderLogger
+from rivo_drome.logger.soulseek_downloader_logger import SoulseekDownloaderLogger
+from rivo_drome.logger.youtube_downloader_logger import YoutubeDownloaderLogger
 from rivo_drome.manager.db_manager import DbManager
 from rivo_drome.manager.example_manager import ExampleManager
 from rivo_drome.manager.navidrome_sample_response_manager import NavidromeSampleResponseManager
@@ -197,6 +199,12 @@ class DefaultContainer:
 
         torrent_downloader_logger = TorrentDownloaderLogger(log_dir=self.log_dir)
         self.injector.binder.bind(TorrentDownloaderLogger, to=torrent_downloader_logger)
+
+        soulseek_downloader_logger = SoulseekDownloaderLogger(log_dir=self.log_dir)
+        self.injector.binder.bind(SoulseekDownloaderLogger, to=soulseek_downloader_logger)
+
+        youtube_downloader_logger = YoutubeDownloaderLogger(log_dir=self.log_dir)
+        self.injector.binder.bind(YoutubeDownloaderLogger, to=youtube_downloader_logger)
 
         navidrome_sample_manager = NavidromeSampleResponseManager(samples_dir=samples_dir)
         self.injector.binder.bind(NavidromeSampleResponseManager, to=navidrome_sample_manager)

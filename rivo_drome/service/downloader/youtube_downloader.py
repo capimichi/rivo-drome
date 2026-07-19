@@ -3,16 +3,24 @@ import os
 import subprocess
 import logging
 from typing import Optional
+from injector import inject
 
 from rivo_drome.model.track_info import TrackInfo
 from rivo_drome.service.downloader.base_downloader import BaseDownloader
-
-logger = logging.getLogger(__name__)
+from rivo_drome.logger.youtube_downloader_logger import YoutubeDownloaderLogger
 
 
 class YoutubeDownloader(BaseDownloader):
-    def __init__(self):
+    @inject
+    def __init__(self, logger: Optional[YoutubeDownloaderLogger] = None):
         super().__init__()
+        if logger is None:
+            class DummyLogger:
+                def __init__(self):
+                    self.logger = logging.getLogger("YoutubeDownloader")
+            self._logger = DummyLogger()
+        else:
+            self._logger = logger
 
     async def _do_download(self, track_info: TrackInfo, dest_path: str) -> Optional[str]:
         query = f"ytsearch:{track_info.artist} - {track_info.title} audio"
@@ -37,7 +45,7 @@ class YoutubeDownloader(BaseDownloader):
             stdout, stderr = await proc.communicate()
 
             if proc.returncode != 0:
-                logger.error("YoutubeDownloader: yt-dlp failed with exit code %d. stderr: %s", proc.returncode, stderr.decode())
+                self._logger.logger.error("YoutubeDownloader: yt-dlp failed with exit code %d. stderr: %s", proc.returncode, stderr.decode())
                 return None
 
             expected_file = os.path.splitext(dest_path)[0] + ".mp3"
@@ -55,5 +63,5 @@ class YoutubeDownloader(BaseDownloader):
 
             return None
         except FileNotFoundError:
-            logger.error("YoutubeDownloader: yt-dlp binary or dependency not found on system path.")
+            self._logger.logger.error("YoutubeDownloader: yt-dlp binary or dependency not found on system path.")
             return None

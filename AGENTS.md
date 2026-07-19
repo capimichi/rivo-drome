@@ -22,6 +22,8 @@
 - In `DefaultContainer`, within the `_init_bindings` method, explicitly bind to `injector` only the classes that require a literal variable during initialization (e.g., environment configurations). If a class only requires other classes in its constructor, it will receive them implicitly from `injector`; do not explicitly bind them in `_init_bindings` to avoid redundant code.
 - Never resolve dependencies or retrieve configuration values inside classes using `DefaultContainer.getInstance()`. Avoid the Service Locator pattern.
 - Avoid defining constants at the module level (outside classes). Always define constants within the class scope where they are used to keep namespaces clean and improve modularity.
+- Always keep import statements at the top of the file. Do not use inline/local imports.
+- Never define loggers outside the class scope at the module level (e.g., `logger = logging.getLogger(__name__)`). Always inject a dedicated logger class via Dependency Injection (DI) to keep the classes testable and modular.
 
 ## Testing Guidelines
 - Use `pytest` (suggested). Place tests in `tests/` mirroring package structure (`tests/service/test_example_service.py`).

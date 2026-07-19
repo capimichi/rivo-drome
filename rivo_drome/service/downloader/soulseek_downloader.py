@@ -2,33 +2,40 @@ import logging
 import os
 import asyncio
 import shutil
+import re
 from typing import Optional, List, Dict
 from injector import inject
 from rivo_drome.config.slskd_config import SlskdConfig
 from rivo_drome.client.slskd_client import SlskdClient
 from rivo_drome.model.track_info import TrackInfo
 from rivo_drome.service.downloader.base_downloader import BaseDownloader
+from rivo_drome.logger.soulseek_downloader_logger import SoulseekDownloaderLogger
 
-logger = logging.getLogger(__name__)
 
 class SoulseekDownloader(BaseDownloader):
     @inject
-    def __init__(self, client: SlskdClient, config: SlskdConfig):
+    def __init__(self, client: SlskdClient, config: SlskdConfig, logger: Optional[SoulseekDownloaderLogger] = None):
         super().__init__()
         self._client = client
         self._config = config
+        if logger is None:
+            class DummyLogger:
+                def __init__(self):
+                    self.logger = logging.getLogger("SoulseekDownloader")
+            self._logger = DummyLogger()
+        else:
+            self._logger = logger
 
     async def _do_download(self, track_info: TrackInfo, dest_path: str) -> Optional[str]:
-        import re
         cleaned_title = track_info.title
         cleaned_title = re.sub(r'[\(\[][^\]\)]*?(?:feat|ft|with|featuring)[^\]\)]*?[\)\]]', '', cleaned_title, flags=re.IGNORECASE)
         cleaned_title = re.sub(r'\s+', ' ', cleaned_title).strip()
         query = f"{track_info.artist} - {cleaned_title}"
-        logger.info("SoulseekDownloader: starting search query '%s'", query)
+        self._logger.logger.info("SoulseekDownloader: starting search query '%s'", query)
         
         search_id = await self._client.search(query)
         if not search_id:
-            logger.warning("SoulseekDownloader: search failed to initialize.")
+            self._logger.logger.warning("SoulseekDownloader: search failed to initialize.")
             return None
 
         final_responses = []
@@ -43,7 +50,7 @@ class SoulseekDownloader(BaseDownloader):
             
             status = await self._client.get_search_status(search_id)
             if status and status.get("isComplete"):
-                logger.info("SoulseekDownloader: search completed on slskd.")
+                self._logger.logger.info("SoulseekDownloader: search completed on slskd.")
                 break
                 
             await asyncio.sleep(2)
@@ -54,7 +61,7 @@ class SoulseekDownloader(BaseDownloader):
 
         candidates = self._get_sorted_candidates(final_responses)
         if not candidates:
-            logger.warning("SoulseekDownloader: no suitable files found for '%s'", query)
+            self._logger.logger.warning("SoulseekDownloader: no suitable files found for '%s'", query)
             return None
 
         # Try enqueuing candidates in order of preference
@@ -66,10 +73,10 @@ class SoulseekDownloader(BaseDownloader):
             remote_filename = candidate["filename"]
             file_size = candidate["size"]
 
-            logger.info("SoulseekDownloader: enqueuing file download from user '%s': %s", username, remote_filename)
+            self._logger.logger.info("SoulseekDownloader: enqueuing file download from user '%s': %s", username, remote_filename)
             enqueue_res = await self._client.enqueue_download(username, remote_filename, file_size)
             if not enqueue_res:
-                logger.warning("SoulseekDownloader: enqueue request failed for user '%s'. Trying next candidate...", username)
+                self._logger.logger.warning("SoulseekDownloader: enqueue request failed for user '%s'. Trying next candidate...", username)
                 continue
 
             enqueued_list = enqueue_res.get("enqueued", [])
@@ -80,10 +87,10 @@ class SoulseekDownloader(BaseDownloader):
                 chosen_candidate = candidate
                 break
             else:
-                logger.warning("SoulseekDownloader: enqueue response for user '%s' did not contain a transfer ID. Trying next...", username)
+                self._logger.logger.warning("SoulseekDownloader: enqueue response for user '%s' did not contain a transfer ID. Trying next...", username)
 
         if not chosen_candidate or not transfer_id:
-            logger.error("SoulseekDownloader: failed to enqueue download from any candidate.")
+            self._logger.logger.error("SoulseekDownloader: failed to enqueue download from any candidate.")
             return None
 
         username = chosen_candidate["username"]
@@ -113,22 +120,22 @@ class SoulseekDownloader(BaseDownloader):
 
             if matched_transfer:
                 state = matched_transfer.get("state")
-                logger.info("SoulseekDownloader: current download state: %s", state)
+                self._logger.logger.info("SoulseekDownloader: current download state: %s", state)
                 if "Succeeded" in state:
                     download_success = True
                     break
                 elif any(s in state for s in ["Errored", "Cancelled", "TimedOut", "Aborted", "Failed"]):
-                    logger.warning("SoulseekDownloader: download transfer failed with state: %s", state)
+                    self._logger.logger.warning("SoulseekDownloader: download transfer failed with state: %s", state)
                     break
             else:
-                logger.warning("SoulseekDownloader: transfer not found in active downloads.")
+                self._logger.logger.warning("SoulseekDownloader: transfer not found in active downloads.")
                 break
 
             await asyncio.sleep(3)
             elapsed_download += 3
 
         if not download_success:
-            logger.warning("SoulseekDownloader: download failed or timed out. Cancelling/Deleting transfer record.")
+            self._logger.logger.warning("SoulseekDownloader: download failed or timed out. Cancelling/Deleting transfer record.")
             await self._client.delete_download(username, transfer_id)
             return None
 
@@ -143,7 +150,7 @@ class SoulseekDownloader(BaseDownloader):
                 break
 
         if not local_source_path:
-            logger.error(
+            self._logger.logger.error(
                 "SoulseekDownloader: completed download file not found under %s for filename: %s", 
                 self._config.downloads_dir,
                 target_filename
@@ -151,7 +158,7 @@ class SoulseekDownloader(BaseDownloader):
             await self._client.delete_download(username, transfer_id)
             return None
 
-        logger.info("SoulseekDownloader: found file locally at %s", local_source_path)
+        self._logger.logger.info("SoulseekDownloader: found file locally at %s", local_source_path)
 
         # Relocate to final destination path with correct extension
         output_dir = os.path.dirname(dest_path)
@@ -161,9 +168,9 @@ class SoulseekDownloader(BaseDownloader):
 
         try:
             shutil.move(local_source_path, final_dest_path)
-            logger.info("SoulseekDownloader: relocated downloaded file to: %s", final_dest_path)
+            self._logger.logger.info("SoulseekDownloader: relocated downloaded file to: %s", final_dest_path)
         except Exception as e:
-            logger.error("SoulseekDownloader: error relocating file: %s", e)
+            self._logger.logger.error("SoulseekDownloader: error relocating file: %s", e)
             await self._client.delete_download(username, transfer_id)
             return None
 
